@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEAM
+  USER
+}
+
+enum EnquiryType {
+  GENERAL
+  QUOTATION
+  CHARTER
+  PHARMA
+  PERISHABLE
+  EXPRESS
+}
+
+enum EnquiryStatus {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  AWAITING_CUSTOMER
+  CLOSED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  NOT_CONFIGURED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedEnquiries Enquiry[]     @relation("AssignedTo")
+  customerEnquiries Enquiry[]     @relation("CustomerEnquiries")
+  replies           EnquiryReply[]
+  notes             EnquiryNote[]
+  activityLogs      ActivityLog[]
+
+  @@map("users")
+}
+
+model Enquiry {
+  id               String        @id @default(cuid())
+  reference        String        @unique
+  type             EnquiryType   @default(GENERAL)
+  status           EnquiryStatus @default(NEW)
+  name             String
+  company          String?
+  email            String
+  phone            String
+  serviceId        String?
+  serviceName      String?
+  origin           String?
+  destination      String?
+  cargoDescription String?
+  weight           Float?
+  weightUnit       String?       @default("KG")
+  pieces           Int?
+  message          String        @db.Text
+  customerId       String?
+  assignedToId     String?
+  ipHash           String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  customer   User?          @relation("CustomerEnquiries", fields: [customerId], references: [id], onDelete: SetNull)
+  assignedTo User?          @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  replies    EnquiryReply[]
+  notes      EnquiryNote[]
+  activities ActivityLog[]
+
+  @@index([status])
+  @@index([email])
+  @@index([customerId])
+  @@index([assignedToId])
+  @@map("enquiries")
+}
+
+model EnquiryReply {
+  id             String   @id @default(cuid())
+  enquiryId      String
+  authorId       String?
+  authorName     String
+  isFromCustomer Boolean  @default(false)
+  message        String   @db.Text
+  createdAt      DateTime @default(now())
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  author  User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([enquiryId])
+  @@map("enquiry_replies")
+}
+
+model EnquiryNote {
+  id         String   @id @default(cuid())
+  enquiryId  String
+  authorId   String
+  authorName String
+  note       String   @db.Text
+  createdAt  DateTime @default(now())
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId])
+  @@map("enquiry_notes")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  enquiryId String
+  userId    String?
+  action    String
+  details   String   @db.Text
+  createdAt DateTime @default(now())
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([enquiryId])
+  @@map("activity_logs")
+}
+
+model NotificationJob {
+  id           String             @id @default(cuid())
+  channel      String             @default("EMAIL")
+  recipient    String
+  subject      String
+  content      String             @db.Text
+  status       NotificationStatus @default(NOT_CONFIGURED)
+  errorDetails String?            @db.Text
+  createdAt    DateTime           @default(now())
+  processedAt  DateTime?
+
+  @@index([status])
+  @@map("notification_jobs")
+}
+
+model PageSection {
+  id         String        @id @default(cuid())
+  sectionKey String        @unique
+  title      String
+  subtitle   String?
+  content    String        @db.Text
+  metaJson   String?       @db.Text
+  status     ContentStatus @default(PUBLISHED)
+  updatedBy  String?
+  updatedAt  DateTime      @updatedAt
+
+  @@index([sectionKey])
+  @@map("page_sections")
+}
+
+model ServiceItem {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  title            String
+  shortDescription String        @db.Text
+  fullDescription  String        @db.Text
+  featuresJson     String        @db.Text
+  icon             String        @default("Plane")
+  imageUrl         String?
+  status           ContentStatus @default(PUBLISHED)
+  order            Int           @default(0)
+  updatedBy        String?
+  updatedAt        DateTime      @updatedAt
+
+  @@index([slug])
+  @@map("services")
+}
+
+model EventItem {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  title     String
+  summary   String        @db.Text
+  content   String        @db.Text
+  location  String
+  eventDate DateTime
+  isPast    Boolean       @default(false)
+  status    ContentStatus @default(PUBLISHED)
+  imageUrl  String?
+  updatedBy String?
+  updatedAt DateTime      @updatedAt
+
+  @@index([slug])
+  @@map("events")
+}
+
+model GalleryItem {
+  id           String        @id @default(cuid())
+  title        String
+  category     String
+  imageUrl     String
+  thumbnailUrl String?
+  altText      String
+  description  String?
+  status       ContentStatus @default(PUBLISHED)
+  order        Int           @default(0)
+  updatedBy    String?
+  updatedAt    DateTime      @updatedAt
+
+  @@index([category])
+  @@map("gallery_items")
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}

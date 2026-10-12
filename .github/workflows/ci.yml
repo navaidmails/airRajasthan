@@ -1,0 +1,66 @@
+name: AirRajasthan CI Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  validate:
+    name: Lint, Type Check & Build Validation
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: airrajasthan_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: "mysql://root:root@127.0.0.1:3306/airrajasthan_ci"
+      JWT_SECRET: "ci-pipeline-secure-test-token-key-2026-secret"
+      NODE_ENV: "test"
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install Pinned Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Apply Versioned Migrations (CI Test DB)
+        run: npx prisma migrate deploy
+
+      - name: Verify Seed Execution
+        run: npx tsx prisma/seed.ts
+        env:
+          SEED_ADMIN_EMAIL: "admin@airrajasthan.com"
+          SEED_ADMIN_PASSWORD: "CiAdminSecurePassword2026!"
+          SEED_TEAM_EMAIL: "team@airrajasthan.com"
+          SEED_TEAM_PASSWORD: "CiTeamSecurePassword2026!"
+          SEED_USER_EMAIL: "client@logistics-partner.com"
+          SEED_USER_PASSWORD: "CiClientSecurePassword2026!"
+
+      - name: TypeScript Type Checking
+        run: npx tsc --noEmit
+
+      - name: Production Build Validation
+        run: npm run build
