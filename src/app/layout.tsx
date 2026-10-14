@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Rajdhani, Barlow } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
+// Headings and prominent display text
+const rajdhani = Rajdhani({
+  subsets: ["latin", "devanagari"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-rajdhani",
   display: "swap",
 });
 
-const outfit = Outfit({
+// Paragraphs, navigation, buttons, forms, tables
+const barlow = Barlow({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-barlow",
   display: "swap",
 });
 
@@ -35,8 +39,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
-      <body className="min-h-screen flex flex-col font-sans bg-slate-50 text-slate-900">
+    <html lang="en" className={`${rajdhani.variable} ${barlow.variable}`}>
+      <body className="min-h-screen flex flex-col font-sans bg-surface-bg text-charcoal-700 antialiased">
         {children}
       </body>
     </html>
